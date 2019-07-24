@@ -1,7 +1,7 @@
 # **Y**ou **O**nly **L**ook **A**t **C**oefficien**T**s
 This is the minimal Pytorch implementation of yolact. The full details are in the [paper](https://arxiv.org/abs/1904.02689). This repo enables you to have a quick understanding of yolact algorithmn.
 
-![image](./docs/boy_detection.jpg)
+![image](./docs/network.png)
 
 ## Installation
  - Set up a Python3 environment.
@@ -25,5 +25,8 @@ $ wget https://github.com/YunYang1994/pytorch-yolact/releases/download/v1/yolact
 $ python image_demo.py
 ```
 
+|![image](./docs/boy_detection.jpg)|![image](./docs/bus_detection.jpg)|
+|---|---
+|![image](./docs/yolact_example_1.png)|![image](./docs/yolact_example_0.png)
  
  

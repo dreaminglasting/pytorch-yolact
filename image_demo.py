@@ -18,7 +18,7 @@ from PIL import Image
 from yolact import Yolact
 from utils import FastBaseTransform, prep_display
 
-image_path = "./docs/bus.jpg"
+image_path = "./docs/boy.jpg"
 
 frame = torch.from_numpy(cv2.imread(image_path)).float()
 batch = FastBaseTransform()(frame.unsqueeze(0))
@@ -32,6 +32,5 @@ with torch.no_grad():
     img_numpy = prep_display(preds, frame, 0.2)
     img_numpy = cv2.cvtColor(img_numpy, cv2.COLOR_BGR2RGB)
     image = Image.fromarray(img_numpy)
-    image.save("./docs/bus_detection.jpg")
     image.show()
 
