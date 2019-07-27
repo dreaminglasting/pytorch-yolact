@@ -55,10 +55,10 @@ class DarkNetBackbone(nn.Module):
 
         # These will be populated by _make_layer
         self.num_base_layers = len(layers)
+        self._preconv = darknetconvlayer(3, 32, kernel_size=3, padding=1)
+
         self.layers = nn.ModuleList()
         self.channels = []
-
-        self._preconv = darknetconvlayer(3, 32, kernel_size=3, padding=1)
         self.in_channels = 32
 
         self._make_layer(block, 32,  layers[0])

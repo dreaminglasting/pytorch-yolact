@@ -65,30 +65,21 @@ def make_net(in_channels, conf, include_last_relu=True):
     def make_layer(layer_cfg):
         nonlocal in_channels
 
-        if isinstance(layer_cfg[0], str):
-            layer_name = layer_cfg[0]
+        num_channels = layer_cfg[0]
+        kernel_size = layer_cfg[1]
 
-            if layer_name == 'cat':
-                nets = [make_net(in_channels, x) for x in layer_cfg[1]]
-                layer = Concat([net[0] for net in nets], layer_cfg[2])
-                num_channels = sum([net[1] for net in nets])
+        if kernel_size > 0:
+            layer = nn.Conv2d(in_channels, num_channels, kernel_size, **layer_cfg[2])
         else:
-            num_channels = layer_cfg[0]
-            kernel_size = layer_cfg[1]
-
-            if kernel_size > 0:
-                layer = nn.Conv2d(in_channels, num_channels, kernel_size, **layer_cfg[2])
-            else:
-                if num_channels is None:
-                    layer = InterpolateModule(scale_factor=-kernel_size, mode='bilinear', align_corners=False, **layer_cfg[2])
-                else:
-                    layer = nn.ConvTranspose2d(in_channels, num_channels, -kernel_size, **layer_cfg[2])
+            print(kernel_size)
+            layer = InterpolateModule(scale_factor=-kernel_size, mode='bilinear', align_corners=False, **layer_cfg[2])
 
         in_channels = num_channels if num_channels is not None else in_channels
 
         # Don't return a ReLU layer if we're doing an upsample. This probably doesn't affect anything
         # output-wise, but there's no need to go through a ReLU here.
         # Commented out for backwards compatibility with previous models
+
         return [layer, nn.ReLU(inplace=True)]
 
     # Use sum to concat together all the component layer lists
@@ -141,18 +132,7 @@ class PredictionModule(nn.Module):
             self.conf_layer = nn.Conv2d(out_channels, self.num_priors * self.num_classes, kernel_size=3, padding=1)
             self.mask_layer = nn.Conv2d(out_channels, self.num_priors * self.mask_dim,    kernel_size=3, padding=1)
 
-            def make_extra(num_layers):
-                if num_layers == 0:
-                    return lambda x: x
-                else:
-                    # Looks more complicated than it is. This just creates an array of num_layers alternating conv-relu
-                    return nn.Sequential(*sum([[
-                        nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-                        nn.ReLU(inplace=True)
-                    ] for _ in range(num_layers)], []))
-
-            self.bbox_extra, self.conf_extra, self.mask_extra = [make_extra(x) for x in (0, 0, 0)]
-
+            self.bbox_extra, self.conf_extra, self.mask_extra = lambda x:x, lambda x:x, lambda x:x
 
         self.aspect_ratios = aspect_ratios
         self.scales = scales
@@ -244,9 +224,8 @@ class FPN(ScriptModuleWrapper):
         ])
 
         # This is here for backwards compatability
-        padding = 1
         self.pred_layers = nn.ModuleList([
-            nn.Conv2d(256, 256, kernel_size=3, padding=padding)
+            nn.Conv2d(256, 256, kernel_size=3, padding=1)
             for _ in in_channels
         ])
 
@@ -258,7 +237,7 @@ class FPN(ScriptModuleWrapper):
         self.num_downsample      = 2
         self.use_conv_downsample = True
 
-    @script_method_wrapper
+    # @script_method_wrapper
     def forward(self, convouts:List[torch.Tensor]):
         """
         Args:
@@ -338,13 +317,17 @@ class Yolact(nn.Module):
         mask_proto_net = [(256, 3, {'padding': 1}), (256, 3, {'padding': 1}), (256, 3, {'padding': 1}), (None, -2, {}), (256, 3, {'padding': 1}), (32, 1, {})]
         # The include_last_relu=false here is because we might want to change it to another function
         self.proto_net, mask_dim = make_net(in_channels, mask_proto_net, include_last_relu=False)
+        print("mask dim", mask_dim)
 
         self.selected_layers = [2,3,4]
         src_channels = self.backbone.channels
+        print(src_channels)
 
         # Some hacky rewiring to accomodate the FPN
         self.fpn = FPN([src_channels[i] for i in self.selected_layers])
+
         self.selected_layers = list(range(len(self.selected_layers) + 2))
+        print(self.selected_layers)
         src_channels = [256] * len(self.selected_layers)
 
 
@@ -386,17 +369,12 @@ class Yolact(nn.Module):
     def forward(self, x):
         """ The input should be of size [batch_size, 3, img_h, img_w] """
         outs = self.backbone(x)
-
         # Use backbone.selected_layers because we overwrote self.selected_layers
         outs = [outs[i] for i in [2, 3, 4]]
         outs = self.fpn(outs)
 
         proto_out = None
         proto_x = x if self.proto_src is None else outs[self.proto_src]
-
-        if self.num_grids > 0:
-            grids = self.grid.repeat(proto_x.size(0), 1, 1, 1)
-            proto_x = torch.cat([proto_x, grids], dim=1)
 
         proto_out = self.proto_net(proto_x)
         proto_out = torch.nn.functional.relu(proto_out, inplace=True)
