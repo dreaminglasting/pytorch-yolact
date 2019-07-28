@@ -197,7 +197,7 @@ class PredictionModule(nn.Module):
 
         return self.priors
 
-class FPN(ScriptModuleWrapper):
+class FPN(nn.Module):
     """
     Implements a general version of the FPN introduced in
     https://arxiv.org/pdf/1612.03144.pdf
@@ -317,17 +317,14 @@ class Yolact(nn.Module):
         mask_proto_net = [(256, 3, {'padding': 1}), (256, 3, {'padding': 1}), (256, 3, {'padding': 1}), (None, -2, {}), (256, 3, {'padding': 1}), (32, 1, {})]
         # The include_last_relu=false here is because we might want to change it to another function
         self.proto_net, mask_dim = make_net(in_channels, mask_proto_net, include_last_relu=False)
-        print("mask dim", mask_dim)
 
         self.selected_layers = [2,3,4]
         src_channels = self.backbone.channels
-        print(src_channels)
 
         # Some hacky rewiring to accomodate the FPN
         self.fpn = FPN([src_channels[i] for i in self.selected_layers])
 
         self.selected_layers = list(range(len(self.selected_layers) + 2))
-        print(self.selected_layers)
         src_channels = [256] * len(self.selected_layers)
 
 
