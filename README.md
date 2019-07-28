@@ -21,7 +21,6 @@ This is the minimal Pytorch implementation of yolact. The full details are in th
 Download pretrained [weights](https://github.com/YunYang1994/pytorch-yolact/releases/download/v1/yolact_darknet53_54_800000.pth) and test it 
 
 ```Shell
-$ wget https://github.com/YunYang1994/pytorch-yolact/releases/download/v1/yolact_darknet53_54_800000.pth
 $ python image_demo.py
 ```
 
